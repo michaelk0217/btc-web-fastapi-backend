@@ -47,26 +47,31 @@ async def get_interval_data(db: db_dependency, itv: str = Path(min_length=2)):
 
 
 # valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+# valid periods: “1d”, “5d”, “1mo”, “3mo”, “6mo”, “1y”, “2y”, “5y”, “10y”, “ytd”, “max”
 @router.post("/post-data/{itv}", status_code=status.HTTP_201_CREATED)
 async def create_hist_data(db: db_dependency, itv: str = Path(min_length=2)):
     ticker_symbol="BTC-USD"
-
-    # btc = yf.Ticker(ticker_symbol)
-    # hist = btc.history(period="1mo", interval=itv)
-
     hist = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1mo", interval=itv)
 
+    
 
     for index, row in hist.iterrows():
-        ticker_data = TickerData(
-            ticker=ticker_symbol,
-            interval=itv,
-            date=index.to_pydatetime(),
-            open=row['Open'],
-            high= row['High'],
-            low= row['Low'],
-            close= row['Close'],
-            volume= row['Volume']
+        existing_data = await db.execute(
+            select(TickerData)
+            .where(TickerData.ticker == ticker_symbol)
+            .where(TickerData.interval == itv)
+            .where(TickerData.date == index.to_pydatetime())
         )
-        db.add(ticker_data)
+        if not existing_data.scalar_one_or_none():
+            ticker_data = TickerData(
+                ticker=ticker_symbol,
+                interval=itv,
+                date=index.to_pydatetime(),
+                open=row['Open'],
+                high=row['High'],
+                low=row['Low'],
+                close=row['Close'],
+                volume=row['Volume']
+            )
+            db.add(ticker_data)
     await db.commit()
