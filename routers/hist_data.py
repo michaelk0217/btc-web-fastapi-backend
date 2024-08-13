@@ -12,7 +12,7 @@ from starlette import status
 from sqlalchemy.future import select
 
 router = APIRouter()
-
+#  hmm
 # def get_db():
 #      db = AsyncSessionLocal()
 #     try:
