@@ -78,22 +78,50 @@ async def initialize_base_data(db: db_dependency):
         hist = hist_list[i]
         itv = intervals[i]
         for index, row in hist.iterrows():
-            existing_data = await db.execute(
-                select(TickerData)
-                .where(TickerData.ticker == ticker_symbol)
-                .where(TickerData.interval == itv)
-                .where(TickerData.date == index.to_pydatetime())
+            # existing_data = await db.execute(
+            #     select(TickerData)
+            #     .where(TickerData.ticker == ticker_symbol)
+            #     .where(TickerData.interval == itv)
+            #     .where(TickerData.date == index.to_pydatetime())
+            # )
+            # if not existing_data.scalar_one_or_none():
+            ticker_data = TickerData(
+                ticker=ticker_symbol,
+                interval=itv,
+                date=index.to_pydatetime(),
+                open=row['Open'],
+                high=row['High'],
+                low=row['Low'],
+                close=row['Close'],
+                volume=row['Volume']
             )
-            if not existing_data.scalar_one_or_none():
-                ticker_data = TickerData(
-                    ticker=ticker_symbol,
-                    interval=itv,
-                    date=index.to_pydatetime(),
-                    open=row['Open'],
-                    high=row['High'],
-                    low=row['Low'],
-                    close=row['Close'],
-                    volume=row['Volume']
-                )
-                db.add(ticker_data)
+            db.add(ticker_data)
         await db.commit()
+
+
+# TESTING WITH 5min intervals
+@router.post("/post-data/initialize-data-test", status_code=status.HTTP_201_CREATED)
+async def initialize_base_data_TEST(db: db_dependency):
+    ticker_symbol="BTC-USD"
+    # hist_1d = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="3mo", interval="1d")
+    # hist_1h = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1mo", interval="1h")
+    # hist_15m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1d", interval="15m")
+    hist_5m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1d", interval="5m")
+    
+    # hist_list = [hist_1d, hist_1h, hist_15m, hist_5m]
+    # intervals = ["1d", "1h", "15m", "5m"]
+
+   
+    for index, row in hist_5m.iterrows():
+        ticker_data = TickerData(
+            ticker=ticker_symbol,
+            interval="5m",
+            date=index.to_pydatetime(),
+            open=row['Open'],
+            high=row['High'],
+            low=row['Low'],
+            close=row['Close'],
+            volume=row['Volume']
+        )
+        db.add(ticker_data)
+    await db.commit()

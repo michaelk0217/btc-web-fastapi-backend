@@ -1,2 +1,3 @@
 venv/
-database_url_private.py
+config.py
+notes.md
