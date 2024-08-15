@@ -1,3 +1,5 @@
 venv/
 config.py
 notes.md
+routers/__pycache__
+__pycache__

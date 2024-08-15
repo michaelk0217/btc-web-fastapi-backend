@@ -18,6 +18,7 @@ async def update_ticker_data():
     ticker_symbol = "BTC-USD"
     # intervals = ["1d", "1h", "15m", "5m"]
     intervals = ["5m"]
+    intervals_to_min = {"1d": 1440, "1h": 60, "15m": 15, "5m": 5}
 
     async with AsyncSessionLocal() as db:
 
@@ -41,7 +42,8 @@ async def update_ticker_data():
 
             if latest_ticker:
                 # If the ticker is still open (less than interval period since last update)
-                if (datetime.now(timezone.utc) - latest_ticker.date) < timedelta(minutes=15):
+                # if (datetime.now(timezone.utc) - latest_ticker.date) < timedelta(minutes=intervals_to_min[itv])
+                if (most_recent_time - latest_ticker.date) < timedelta(minutes=intervals_to_min[itv]):
                     latest_ticker.close = current_price
                     db.add(latest_ticker)
                 else:
