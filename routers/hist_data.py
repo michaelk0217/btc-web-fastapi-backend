@@ -6,9 +6,10 @@ import yfinance as yf
 import pandas as pd
 from database import AsyncSessionLocal
 from models import TickerData
-from datetime import datetime
+from datetime import datetime, timezone
 from starlette import status
 from sqlalchemy.future import select
+from sqlalchemy import desc
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ async def get_db():
 
 db_dependency = Annotated[AsyncSession, Depends(get_db)]
 
-@router.get("/", status_code=status.HTTP_200_OK)
+@router.get("/get-all", status_code=status.HTTP_200_OK)
 async def get_all_data(db: db_dependency):
     result = await db.execute(select(TickerData))
     data = result.scalars().all()
@@ -29,6 +30,14 @@ async def get_interval_data(db: db_dependency, itv: str = Path(min_length=2)):
     result = await db.execute(select(TickerData).filter(TickerData.interval == itv))
     data = result.scalars().all()
 
+    if data:
+        return data
+    raise HTTPException(status_code=404, detail="Data not found")
+
+@router.get("/interval-count/{itv}/{cnt}", status_code=status.HTTP_200_OK)
+async def get__period_interval_data(db:db_dependency, itv: str = Path(min_length=2), cnt: int = Path(gt=0)):
+    result = await db.execute(select(TickerData).filter(TickerData.interval == itv).order_by(desc(TickerData.id)).limit(cnt))
+    data = result.scalars().all()
     if data:
         return data
     raise HTTPException(status_code=404, detail="Data not found")
@@ -68,8 +77,8 @@ async def initialize_base_data(db: db_dependency):
     ticker_symbol="BTC-USD"
     hist_1d = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="3mo", interval="1d")
     hist_1h = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1mo", interval="1h")
-    hist_15m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1d", interval="15m")
-    hist_5m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="1d", interval="5m")
+    hist_15m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="5d", interval="15m")
+    hist_5m = await asyncio.to_thread(yf.Ticker(ticker_symbol).history, period="5d", interval="5m")
     
     hist_list = [hist_1d, hist_1h, hist_15m, hist_5m]
     intervals = ["1d", "1h", "15m", "5m"]
@@ -88,7 +97,7 @@ async def initialize_base_data(db: db_dependency):
             ticker_data = TickerData(
                 ticker=ticker_symbol,
                 interval=itv,
-                date=index.to_pydatetime(),
+                date=index.to_pydatetime().astimezone(timezone.utc),
                 open=row['Open'],
                 high=row['High'],
                 low=row['Low'],

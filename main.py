@@ -18,8 +18,8 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         # startup
         await async_create_all(engine)
-        # await initialize_base_data(db)
-        await initialize_base_data_TEST(db)
+        await initialize_base_data(db)
+        # await initialize_base_data_TEST(db)
         update_data_scheduler.start()
         yield
         # shutdown
